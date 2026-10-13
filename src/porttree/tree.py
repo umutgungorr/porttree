@@ -53,7 +53,11 @@ def find_git_info(cwd: str | None) -> tuple[str | None, str | None]:
                 content = git_target.read_text(encoding="utf-8", errors="replace").strip()
                 if content.startswith("gitdir:"):
                     raw_dir = content[len("gitdir:") :].strip()
-                    git_dir = (directory / raw_dir).resolve()
+                    raw_path = Path(raw_dir)
+                    if raw_path.is_absolute():
+                        git_dir = raw_path.resolve()
+                    else:
+                        git_dir = (directory / raw_dir).resolve()
                     head_path = git_dir / "HEAD"
             except (OSError, UnicodeDecodeError):
                 pass
@@ -64,6 +68,15 @@ def find_git_info(cwd: str | None) -> tuple[str | None, str | None]:
                 if head_content.startswith("ref: refs/heads/"):
                     branch = head_content[len("ref: refs/heads/") :]
                     return branch, repo_name
+                if head_content.startswith("ref: refs/tags/"):
+                    tag = head_content[len("ref: refs/tags/") :]
+                    return f"tag:{tag}", repo_name
+                if head_content.startswith("ref: refs/remotes/"):
+                    remote = head_content[len("ref: refs/remotes/") :]
+                    return f"remote:{remote}", repo_name
+                if head_content.startswith("ref: refs/"):
+                    ref = head_content[len("ref: refs/") :]
+                    return ref, repo_name
                 if re.match(r"^[0-9a-fA-F]{7,64}$", head_content):
                     # Detached HEAD (supports SHA-1 and SHA-256)
                     return f"detached:{head_content[:7]}", repo_name
@@ -95,10 +108,60 @@ class ProcessResolver:
             if node:
                 self._cache[pid] = node
 
-        if node and self.resolve_git and node.cwd and not node.git_branch:
-            node.git_branch, node.git_repo = find_git_info(node.cwd)
+        if node and self.resolve_git and not node.git_branch:
+            node.git_branch, node.git_repo = self._resolve_git_for_node(node)
 
         return node
+
+    def _resolve_git_for_node(self, node: ProcessNode) -> tuple[str | None, str | None]:
+        """Resolve Git branch and repository name for a process node using multiple strategies."""
+        # Strategy 1: Check node.cwd if it exists
+        if node.cwd:
+            branch, repo = find_git_info(node.cwd)
+            if branch:
+                return branch, repo
+
+        # Strategy 2: Extract candidate paths from command-line arguments
+        candidates = self._extract_candidate_paths(node)
+        for cand in candidates:
+            branch, repo = find_git_info(cand)
+            if branch:
+                return branch, repo
+
+        # Strategy 3: Check current working directory of caller if node seems local
+        try:
+            cwd = Path.cwd()
+            branch, repo = find_git_info(str(cwd))
+            if branch and repo and node.cmdline:
+                for token in node.args:
+                    clean_token = token.strip("\"' ")
+                    if clean_token and (cwd / clean_token).exists():
+                        return branch, repo
+        except Exception:
+            pass
+
+        return None, None
+
+    @staticmethod
+    def _extract_candidate_paths(node: ProcessNode) -> list[str]:
+        """Extract candidate directory paths from process command-line arguments."""
+        candidates: list[str] = []
+        tokens = list(node.args) if node.args else ([node.cmdline] if node.cmdline else [])
+        for token in tokens:
+            cleaned = token.strip("\"' ")
+            if not cleaned or len(cleaned) < 2:
+                continue
+
+            try:
+                p = Path(cleaned)
+                if p.is_file():
+                    candidates.append(str(p.parent.resolve()))
+                elif p.is_dir():
+                    candidates.append(str(p.resolve()))
+            except (OSError, ValueError):
+                continue
+
+        return candidates
 
     def build_full_tree(self, pid: int, include_ancestors: bool = True) -> ProcessNode | None:
         """Build the full process tree for a listening PID.
@@ -138,8 +201,8 @@ class ProcessResolver:
         children = [p for p in self._cache.values() if p.ppid == node.pid and p.pid != node.pid]
         node.children = children
         for child in children:
-            if self.resolve_git and child.cwd and not child.git_branch:
-                child.git_branch, child.git_repo = find_git_info(child.cwd)
+            if self.resolve_git and not child.git_branch:
+                child.git_branch, child.git_repo = self._resolve_git_for_node(child)
             self._attach_children(child)
 
     def _load_all_processes(self) -> None:
@@ -223,6 +286,8 @@ class ProcessResolver:
                 ["ps", "-eo", "pid,ppid,user,comm,args"],
                 capture_output=True,
                 text=True,
+                encoding="utf-8",
+                errors="replace",
                 check=False,
                 timeout=5,
             )
@@ -261,6 +326,7 @@ class ProcessResolver:
         """Read all processes on Windows using PowerShell Get-CimInstance or tasklist."""
         # Method 1: PowerShell Get-CimInstance Win32_Process
         ps_cmd = (
+            "[Console]::OutputEncoding = [System.Text.Encoding]::UTF8; "
             "Get-CimInstance Win32_Process | "
             "Select-Object ProcessId,ParentProcessId,Name,CommandLine,ExecutablePath | "
             "ConvertTo-Csv -NoTypeInformation"
@@ -270,6 +336,8 @@ class ProcessResolver:
                 ["powershell", "-NoProfile", "-NonInteractive", "-Command", ps_cmd],
                 capture_output=True,
                 text=True,
+                encoding="utf-8",
+                errors="replace",
                 check=False,
                 timeout=8,
             )
@@ -308,6 +376,8 @@ class ProcessResolver:
                 ["tasklist", "/FO", "CSV", "/NH"],
                 capture_output=True,
                 text=True,
+                encoding="utf-8",
+                errors="replace",
                 check=False,
                 timeout=5,
             )

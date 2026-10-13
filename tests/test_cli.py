@@ -105,3 +105,41 @@ def test_cli_winnat(capsys):
         captured = capsys.readouterr()
         assert "50000" in captured.out
         assert "Administered (*)" in captured.out
+
+
+def test_cli_positional_port_target(capsys):
+    sockets = [SocketInfo(protocol="tcp", local_address="0.0.0.0", local_port=3000, pid=123)]
+    with (
+        patch("porttree.cli.scan_listening_sockets", return_value=sockets) as mock_scan,
+        patch("porttree.cli.ProcessResolver.build_full_tree", return_value=None),
+        patch("porttree.cli.is_windows", return_value=False),
+    ):
+        code = main(["3000"])
+        assert code == 0
+        mock_scan.assert_called_once_with(ports=[3000], protocol="all")
+        captured = capsys.readouterr()
+        assert "PORT 3000" in captured.out
+
+
+def test_cli_positional_port_range(capsys):
+    with (
+        patch("porttree.cli.scan_listening_sockets", return_value=[]) as mock_scan,
+        patch("porttree.cli.is_windows", return_value=False),
+    ):
+        code = main(["3000-3002"])
+        assert code == 0
+        mock_scan.assert_called_once_with(ports=[3000, 3001, 3002], protocol="all")
+
+
+def test_cli_positional_port_with_flags(capsys):
+    sockets = [SocketInfo(protocol="tcp", local_address="0.0.0.0", local_port=8080, pid=456)]
+    with (
+        patch("porttree.cli.scan_listening_sockets", return_value=sockets),
+        patch("porttree.cli.ProcessResolver.build_full_tree", return_value=None),
+        patch("porttree.cli.is_windows", return_value=False),
+    ):
+        code = main(["--compact", "8080"])
+        assert code == 0
+        captured = capsys.readouterr()
+        assert "8080" in captured.out
+        assert "PORT" in captured.out

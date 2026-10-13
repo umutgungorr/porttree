@@ -10,6 +10,7 @@ from porttree.scanner import (
     scan_listening_sockets,
     scan_macos_lsof,
     scan_windows_netstat,
+    scan_windows_nettcpconnection,
 )
 
 
@@ -144,3 +145,35 @@ def test_scan_listening_sockets_deduplication_and_filtering():
         # Scan all (deduped)
         all_res = scan_listening_sockets()
         assert len(all_res) == 3
+
+
+def test_scan_windows_nettcpconnection():
+    sample_tcp_csv = (
+        '"LocalAddress","LocalPort","OwningProcess"\r\n'
+        '"::","49682","1612"\r\n'
+        '"127.0.0.1","3000","7788"\r\n'
+        '"0.0.0.0","8080","9999"\r\n'
+    )
+    sample_udp_csv = '"LocalAddress","LocalPort","OwningProcess"\r\n"0.0.0.0","5353","1234"\r\n'
+
+    with patch("subprocess.run") as mock_run:
+        # First call TCP, second call UDP
+        mock_run.side_effect = [
+            MagicMock(returncode=0, stdout=sample_tcp_csv),
+            MagicMock(returncode=0, stdout=sample_udp_csv),
+        ]
+
+        sockets = scan_windows_nettcpconnection(protocol="all")
+        assert len(sockets) == 4
+        assert sockets[0].protocol == "tcp"
+        assert sockets[0].local_port == 49682
+        assert sockets[0].pid == 1612
+        assert sockets[0].local_address == "::"
+
+        assert sockets[1].local_port == 3000
+        assert sockets[1].pid == 7788
+        assert sockets[1].local_address == "127.0.0.1"
+
+        assert sockets[3].protocol == "udp"
+        assert sockets[3].local_port == 5353
+        assert sockets[3].pid == 1234

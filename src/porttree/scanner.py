@@ -165,6 +165,8 @@ def scan_linux_ss(protocol: str = "all") -> list[SocketInfo]:
             ["ss", flags],
             capture_output=True,
             text=True,
+            encoding="utf-8",
+            errors="replace",
             check=False,
             timeout=5,
         )
@@ -242,6 +244,8 @@ def scan_macos_lsof(protocol: str = "all") -> list[SocketInfo]:
                 cmd,
                 capture_output=True,
                 text=True,
+                encoding="utf-8",
+                errors="replace",
                 check=False,
                 timeout=5,
             )
@@ -308,6 +312,8 @@ def scan_windows_netstat(protocol: str = "all") -> list[SocketInfo]:
                 ["netstat", "-ano", "-p", p],
                 capture_output=True,
                 text=True,
+                encoding="utf-8",
+                errors="replace",
                 check=False,
                 timeout=5,
             )
@@ -380,6 +386,113 @@ def scan_windows_netstat(protocol: str = "all") -> list[SocketInfo]:
     return sockets
 
 
+def scan_windows_nettcpconnection(protocol: str = "all") -> list[SocketInfo]:
+    """Parse output of PowerShell 'Get-NetTCPConnection' and 'Get-NetUDPEndpoint' on Windows.
+
+    Provides direct querying of the Windows TCP/IP kernel stack with structured CSV output.
+    """
+    import csv
+    import io
+
+    sockets: list[SocketInfo] = []
+
+    # 1. TCP sockets via Get-NetTCPConnection
+    if protocol in ("all", "tcp"):
+        ps_tcp = (
+            "[Console]::OutputEncoding = [System.Text.Encoding]::UTF8; "
+            "Get-NetTCPConnection -State Listen | "
+            "Select-Object LocalAddress,LocalPort,OwningProcess | "
+            "ConvertTo-Csv -NoTypeInformation"
+        )
+        try:
+            proc = subprocess.run(
+                ["powershell", "-NoProfile", "-NonInteractive", "-Command", ps_tcp],
+                capture_output=True,
+                text=True,
+                encoding="utf-8",
+                errors="replace",
+                check=False,
+                timeout=6,
+            )
+            if proc.returncode == 0 and proc.stdout:
+                reader = csv.DictReader(io.StringIO(proc.stdout))
+                for row in reader:
+                    addr = (row.get("LocalAddress") or "").strip().strip("[]") or "0.0.0.0"
+                    port_str = (row.get("LocalPort") or "").strip()
+                    pid_str = (row.get("OwningProcess") or "").strip()
+
+                    try:
+                        port = int(port_str)
+                    except ValueError:
+                        continue
+
+                    try:
+                        pid = int(pid_str) if pid_str else None
+                    except ValueError:
+                        pid = None
+
+                    sockets.append(
+                        SocketInfo(
+                            protocol="tcp",
+                            local_address=addr,
+                            local_port=port,
+                            state="LISTEN",
+                            pid=pid,
+                        )
+                    )
+        except (FileNotFoundError, OSError, subprocess.SubprocessError):
+            pass
+
+    # 2. UDP endpoints via Get-NetUDPEndpoint
+    if protocol in ("all", "udp"):
+        ps_udp = (
+            "[Console]::OutputEncoding = [System.Text.Encoding]::UTF8; "
+            "Get-NetUDPEndpoint | "
+            "Select-Object LocalAddress,LocalPort,OwningProcess | "
+            "ConvertTo-Csv -NoTypeInformation"
+        )
+        try:
+            proc = subprocess.run(
+                ["powershell", "-NoProfile", "-NonInteractive", "-Command", ps_udp],
+                capture_output=True,
+                text=True,
+                encoding="utf-8",
+                errors="replace",
+                check=False,
+                timeout=6,
+            )
+            if proc.returncode == 0 and proc.stdout:
+                reader = csv.DictReader(io.StringIO(proc.stdout))
+                for row in reader:
+                    addr = (row.get("LocalAddress") or "").strip().strip("[]") or "0.0.0.0"
+                    port_str = (row.get("LocalPort") or "").strip()
+                    pid_str = (row.get("OwningProcess") or "").strip()
+
+                    try:
+                        port = int(port_str)
+                    except ValueError:
+                        continue
+
+                    try:
+                        pid = int(pid_str) if pid_str else None
+                    except ValueError:
+                        pid = None
+
+                    sockets.append(
+                        SocketInfo(
+                            protocol="udp",
+                            local_address=addr,
+                            local_port=port,
+                            state="LISTEN",
+                            pid=pid,
+                        )
+                    )
+        except (FileNotFoundError, OSError, subprocess.SubprocessError):
+            pass
+
+    return sockets
+
+
 def scan_listening_sockets(
     ports: list[int] | None = None,
     protocol: str = "all",
@@ -413,6 +526,19 @@ def scan_listening_sockets(
 
     elif sys.platform.startswith("win"):
         raw_sockets = scan_windows_netstat(protocol=protocol)
+        # If netstat returned nothing or had missing PIDs, augment with Get-NetTCPConnection
+        has_missing_pids = any(s.pid is None for s in raw_sockets)
+        if not raw_sockets or has_missing_pids:
+            ps_sockets = scan_windows_nettcpconnection(protocol=protocol)
+            if ps_sockets:
+                if not raw_sockets:
+                    raw_sockets = ps_sockets
+                else:
+                    # Fill missing PIDs from PowerShell structured query
+                    pid_lookup = {(s.protocol, s.local_port): s.pid for s in ps_sockets if s.pid}
+                    for s in raw_sockets:
+                        if s.pid is None:
+                            s.pid = pid_lookup.get((s.protocol, s.local_port))
 
     else:
         # Fallback for BSD / others

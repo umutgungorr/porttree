@@ -69,6 +69,8 @@ class DockerUnmasker:
                 cmd,
                 capture_output=True,
                 text=True,
+                encoding="utf-8",
+                errors="replace",
                 check=False,
                 timeout=self.timeout_sec,
             )
@@ -142,11 +144,9 @@ class DockerUnmasker:
             return ports
 
         # Regex for host port mappings:
-        # e.g., "0.0.0.0:5432->5432/tcp" or "[::]:8080->80/tcp" or "127.0.0.1:3000->3000/tcp"
-        # or port ranges "0.0.0.0:8000-8002->8000-8002/tcp"
-        pattern = re.compile(
-            r"(?:\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}|\[::\]|:::|\*):(\d+)(?:-(\d+))?->"
-        )
+        # e.g., "0.0.0.0:5432->5432/tcp" or "[::]:8080->80/tcp" or "::1:3000->3000/tcp"
+        # or "localhost:4000->4000/tcp" or port ranges "0.0.0.0:8000-8002->8000-8002/tcp"
+        pattern = re.compile(r"(?:^|[\s,])(?:\[?[a-zA-Z0-9._%*:-]*\]?):(\d+)(?:-(\d+))?->")
 
         for match in pattern.finditer(ports_str):
             start_port = int(match.group(1))

@@ -212,14 +212,18 @@ class TreeFormatter:
 
                 detail_col = " | ".join(detail_parts) or "-"
 
-            rows.append(
-                f"{Colors.port(port_col):<17} "
-                f"{Colors.dim(proto_col):<15} "
-                f"{Colors.success(status_col) if status_col == 'LISTEN' else Colors.warn(status_col):<19} "
-                f"{Colors.pid(pid_col):<17} "
-                f"{Colors.proc(proc_col):<29} "
-                f"{detail_col}"
+            c_port = Colors.port(f"{port_col:<8}")
+            c_proto = Colors.dim(f"{proto_col:<6}")
+            status_styled = (
+                Colors.success(f"{status_col:<10}")
+                if status_col == "LISTEN"
+                else Colors.warn(f"{status_col:<10}")
             )
+            c_pid = Colors.pid(f"{pid_col:<8}")
+            proc_disp = proc_col if len(proc_col) <= 20 else proc_col[:17] + "..."
+            c_proc = Colors.proc(f"{proc_disp:<20}")
+
+            rows.append(f"{c_port} {c_proto} {status_styled} {c_pid} {c_proc} {detail_col}")
 
         return "\n".join(rows)
 

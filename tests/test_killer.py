@@ -89,3 +89,23 @@ def test_kill_port_escalation_to_force():
             call.kwargs.get("force") is True or (len(call.args) > 1 and call.args[1] is True)
             for call in mock_terminate.call_args_list
         )
+
+
+def test_kill_port_with_ancestor_dev_runner():
+    sockets = [SocketInfo(protocol="tcp", local_address="0.0.0.0", local_port=3000, pid=1234)]
+    worker = ProcessNode(pid=1235, ppid=1234, name="node worker")
+    server = ProcessNode(pid=1234, ppid=999, name="node server", children=[worker])
+    nodemon = ProcessNode(pid=999, name="nodemon", children=[server])
+
+    mock_scan = MagicMock(side_effect=[sockets, []])
+    with (
+        patch("porttree.killer.scan_listening_sockets", mock_scan),
+        patch("porttree.tree.ProcessResolver.build_full_tree", return_value=nodemon) as mock_tree,
+        patch("porttree.killer._terminate_pid", return_value=True),
+        patch("porttree.killer._is_pid_alive", return_value=False),
+    ):
+        res = kill_port(3000, auto_confirm=True, timeout=0.1)
+        assert res.success is True
+        mock_tree.assert_called_once_with(1234, include_ancestors=True)
+        # Nodemon (999), server (1234), and worker (1235) must all be included
+        assert set(res.killed_pids) == {999, 1234, 1235}

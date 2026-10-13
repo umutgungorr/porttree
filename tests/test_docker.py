@@ -17,10 +17,16 @@ def test_is_docker_process():
 
 def test_parse_ports():
     unmasker = DockerUnmasker()
-    ports_str = "0.0.0.0:5432->5432/tcp, :::5432->5432/tcp, 127.0.0.1:8080->80/tcp"
+    ports_str = (
+        "0.0.0.0:5432->5432/tcp, :::5432->5432/tcp, 127.0.0.1:8080->80/tcp, "
+        "::1:3000->3000/tcp, [::1]:3001->3001/tcp, localhost:4000->4000/tcp"
+    )
     ports = unmasker._parse_ports(ports_str)
     assert 5432 in ports
     assert 8080 in ports
+    assert 3000 in ports
+    assert 3001 in ports
+    assert 4000 in ports
 
     # Test port range
     range_str = "0.0.0.0:8000-8002->8000-8002/tcp"

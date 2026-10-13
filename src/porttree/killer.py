@@ -54,6 +54,8 @@ def _is_pid_alive(pid: int) -> bool:
                 ["tasklist", "/FI", f"PID eq {pid}", "/NH"],
                 capture_output=True,
                 text=True,
+                encoding="utf-8",
+                errors="replace",
                 check=False,
                 timeout=2,
             )
@@ -84,7 +86,15 @@ def _terminate_pid(pid: int, force: bool = False) -> bool:
             cmd.extend(["/F", "/T"])
         cmd.extend(["/PID", str(pid)])
         try:
-            res = subprocess.run(cmd, capture_output=True, text=True, check=False, timeout=3)
+            res = subprocess.run(
+                cmd,
+                capture_output=True,
+                text=True,
+                encoding="utf-8",
+                errors="replace",
+                check=False,
+                timeout=3,
+            )
             return res.returncode == 0
         except Exception:
             return False
@@ -105,6 +115,7 @@ def kill_port(
     timeout: float = 3.0,
     dry_run: bool = False,
     auto_confirm: bool = False,
+    include_ancestors: bool = True,
 ) -> KillResult:
     """Terminate the entire process tree holding a port.
 
@@ -114,6 +125,8 @@ def kill_port(
         timeout: Seconds to wait for SIGTERM before escalating to SIGKILL.
         dry_run: If True, returns preview of actions without terminating.
         auto_confirm: If False and interactive, prompts user for confirmation.
+        include_ancestors: If True, also terminates parent dev runners (nodemon, npm)
+                           to prevent immediate respawning of workers.
     """
     # 1. Scan the port for listening sockets
     sockets = scan_listening_sockets(ports=[port])
@@ -149,13 +162,13 @@ def kill_port(
     process_names: list[str] = []
 
     for l_pid in listening_pids:
-        node = resolver.build_full_tree(l_pid, include_ancestors=False)
+        node = resolver.build_full_tree(l_pid, include_ancestors=include_ancestors)
         if node:
             all_tree_pids = node.all_pids()
-            # Order: children first, then parent
-            children_pids = [p for p in all_tree_pids if p != l_pid]
+            # Order: children first, then root/parent
+            children_pids = [p for p in all_tree_pids if p != node.pid]
             pids_to_kill.extend(children_pids)
-            pids_to_kill.append(l_pid)
+            pids_to_kill.append(node.pid)
             process_names.append(node.name or f"PID {node.pid}")
             for c in node.children:
                 process_names.append(c.name or f"PID {c.pid}")

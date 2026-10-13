@@ -129,3 +129,26 @@ def test_render_kill_result():
     assert "SUCCESS" in out
     assert "Freed port 3000" in out
     assert "100" in out
+
+
+def test_render_compact_alignment_no_color():
+    from porttree.config import Colors
+
+    Colors.disable()
+    try:
+        formatter = TreeFormatter(use_ascii=True)
+        p = ProcessNode(pid=1234, name="node")
+        entry = PortEntry(port=80, protocol="tcp", process=p)
+        out = formatter.render_compact([entry])
+        lines = out.splitlines()
+        header = lines[0]
+        data_row = lines[2]
+
+        # Verify that column headers and values start at identical indices
+        assert header.index("PORT") == data_row.index("80")
+        assert header.index("PROTO") == data_row.index("TCP")
+        assert header.index("STATUS") == data_row.index("LISTEN")
+        assert header.index("PID") == data_row.index("1234")
+        assert header.index("PROCESS") == data_row.index("node")
+    finally:
+        Colors.enable()

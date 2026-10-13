@@ -123,8 +123,29 @@ def parse_compose_file(file_path: Path) -> list[DeclaredPort]:
             continue
 
         if in_ports_block:
-            if indent <= ports_indent and not stripped.startswith("-"):
+            if (
+                indent <= ports_indent
+                and not stripped.startswith("-")
+                and not stripped.startswith("target:")
+                and not stripped.startswith("published:")
+            ):
                 in_ports_block = False
+                continue
+
+            # Long syntax: "published: 8080" or "published: '8080'"
+            pub_match = re.search(r"published:\s*['\"]?(\d+)['\"]?", stripped)
+            if pub_match:
+                p = int(pub_match.group(1))
+                if 1 <= p <= 65535:
+                    ctx = f"service '{current_service}'" if current_service else "service"
+                    declared.append(
+                        DeclaredPort(
+                            port=p,
+                            protocol="tcp",
+                            source_file=file_path.name,
+                            context=ctx,
+                        )
+                    )
                 continue
 
             if stripped.startswith("-"):
@@ -146,7 +167,7 @@ def parse_compose_file(file_path: Path) -> list[DeclaredPort]:
 
 
 def parse_package_json(file_path: Path) -> list[DeclaredPort]:
-    """Scan scripts in package.json for standard port arguments (--port, -p, PORT=)."""
+    """Scan scripts and config in package.json for standard port arguments (--port, -p, PORT=)."""
     declared: list[DeclaredPort] = []
     if not file_path.is_file():
         return declared
@@ -156,7 +177,26 @@ def parse_package_json(file_path: Path) -> list[DeclaredPort]:
     except (OSError, json.JSONDecodeError):
         return declared
 
-    scripts = data.get("scripts", {})
+    def _check_port_value(val: object, ctx: str) -> None:
+        if isinstance(val, int) and 1 <= val <= 65535:
+            declared.append(
+                DeclaredPort(port=val, protocol="tcp", source_file=file_path.name, context=ctx)
+            )
+        elif isinstance(val, str) and val.isdigit() and 1 <= int(val) <= 65535:
+            declared.append(
+                DeclaredPort(port=int(val), protocol="tcp", source_file=file_path.name, context=ctx)
+            )
+
+    # Check top-level or config/devServer port
+    if isinstance(data, dict):
+        if "port" in data:
+            _check_port_value(data["port"], "config 'port'")
+        for section_name in ("config", "devServer", "server"):
+            sec = data.get(section_name)
+            if isinstance(sec, dict) and "port" in sec:
+                _check_port_value(sec["port"], f"{section_name} 'port'")
+
+    scripts = data.get("scripts", {}) if isinstance(data, dict) else {}
     if not isinstance(scripts, dict):
         return declared
 
@@ -187,7 +227,7 @@ def parse_package_json(file_path: Path) -> list[DeclaredPort]:
 
 
 def parse_env_file(file_path: Path) -> list[DeclaredPort]:
-    """Scan .env files for declared port variables."""
+    """Scan .env files for declared port variables and localhost URLs."""
     declared: list[DeclaredPort] = []
     if not file_path.is_file():
         return declared
@@ -197,22 +237,52 @@ def parse_env_file(file_path: Path) -> list[DeclaredPort]:
     except OSError:
         return declared
 
-    pattern = re.compile(
-        r"^\s*([A-Za-z0-9_]*PORT[A-Za-z0-9_]*)\s*=\s*([0-9]{2,5})\s*$", re.MULTILINE
-    )
+    url_port_pattern = re.compile(r"(?:localhost|127\.0\.0\.1|0\.0\.0\.0):(\d{2,5})")
 
-    for match in pattern.finditer(content):
-        var_name = match.group(1)
-        port = int(match.group(2))
-        if 1 <= port <= 65535:
-            declared.append(
-                DeclaredPort(
-                    port=port,
-                    protocol="tcp",
-                    source_file=file_path.name,
-                    context=f"env var '{var_name}'",
+    for line in content.splitlines():
+        line = line.strip()
+        if not line or line.startswith("#") or "=" not in line:
+            continue
+
+        key, val = line.split("=", 1)
+        key = key.strip()
+        val = val.strip()
+
+        # Strip inline comment (e.g. PORT=3000 # comment) if not within quotes
+        if "#" in val and not (val.startswith(('"', "'")) and val.endswith(('"', "'"))):
+            val = val.split("#", 1)[0].strip()
+
+        # Strip enclosing quotes
+        val = val.strip("\"' ")
+
+        # Match PORT variable
+        if "port" in key.lower():
+            if val.isdigit():
+                port = int(val)
+                if 1 <= port <= 65535:
+                    declared.append(
+                        DeclaredPort(
+                            port=port,
+                            protocol="tcp",
+                            source_file=file_path.name,
+                            context=f"env var '{key}'",
+                        )
+                    )
+                    continue
+
+        # Match database/service connection URLs targeting localhost
+        url_match = url_port_pattern.search(val)
+        if url_match:
+            port = int(url_match.group(1))
+            if 1 <= port <= 65535:
+                declared.append(
+                    DeclaredPort(
+                        port=port,
+                        protocol="tcp",
+                        source_file=file_path.name,
+                        context=f"env url '{key}'",
+                    )
                 )
-            )
 
     return declared
 

@@ -222,7 +222,7 @@ def handle_winnat(args: argparse.Namespace) -> int:
 
         excl = check_port_exclusion(port_num)
         if excl:
-            print(format_winnat_diagnosis(port_num, excl))
+            print(format_winnat_diagnosis(port_num, excl, use_ascii=getattr(args, "ascii", False)))
         else:
             print(
                 f"{Colors.success('Clean:')} Port {Colors.port(str(port_num))} is not within any Windows excluded port range."
@@ -338,6 +338,9 @@ Windows Port Exclusions:
     )
     winnat_parser.add_argument("port", nargs="?", help="Specific port number to diagnose")
     winnat_parser.add_argument("--no-color", action="store_true", help="Disable ANSI color codes")
+    winnat_parser.add_argument(
+        "--ascii", action="store_true", help="Use ASCII characters for output"
+    )
 
     # Options for default scan mode
     parser.add_argument(
@@ -365,24 +368,68 @@ Windows Port Exclusions:
     return parser
 
 
+def _normalize_argv(argv: list[str]) -> list[str]:
+    """Normalize CLI arguments to handle positional target port specifications.
+
+    Translates invocations like 'porttree 3000' or 'porttree 3000-3005 --compact'
+    into options recognized by argparse without conflicting with subparsers.
+    """
+    subcommands = {"free", "kill", "check", "winnat"}
+    flags_with_val = {"-p", "--port", "-t", "--timeout"}
+
+    new_argv: list[str] = []
+    i = 0
+    port_converted = False
+
+    while i < len(argv):
+        arg = argv[i]
+        if arg in flags_with_val:
+            new_argv.append(arg)
+            if i + 1 < len(argv):
+                new_argv.append(argv[i + 1])
+                i += 2
+                continue
+            i += 1
+            continue
+
+        if not arg.startswith("-") and not port_converted:
+            if arg in subcommands:
+                # User invoked a subcommand (e.g. 'free', 'kill', 'check', 'winnat')
+                new_argv.extend(argv[i:])
+                return new_argv
+
+            # It's a positional port specification (e.g. 3000, 3000-3005, 3000,8080)
+            new_argv.extend(["-p", arg])
+            port_converted = True
+            i += 1
+            continue
+
+        new_argv.append(arg)
+        i += 1
+
+    return new_argv
+
+
 def main(argv: list[str] | None = None) -> int:
     """Entry point for the PortTree CLI."""
+    # Ensure stdout and stderr handle UTF-8 cleanly across Windows and POSIX
+    if hasattr(sys.stdout, "reconfigure"):
+        try:
+            sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+        except Exception:
+            pass
+    if hasattr(sys.stderr, "reconfigure"):
+        try:
+            sys.stderr.reconfigure(encoding="utf-8", errors="replace")
+        except Exception:
+            pass
+
     if argv is None:
         argv = sys.argv[1:]
 
+    normalized_argv = _normalize_argv(argv)
     parser = build_parser()
-
-    # Special handling: if first arg is an integer, treat as default scan with target
-    if (
-        argv
-        and argv[0].isdigit()
-        and "-" not in argv[0]
-        and argv[0] not in ("free", "kill", "check", "winnat")
-    ):
-        # Let parser handle it as target
-        pass
-
-    args = parser.parse_args(argv)
+    args = parser.parse_args(normalized_argv)
 
     if args.command in ("free", "kill"):
         return handle_kill(args)

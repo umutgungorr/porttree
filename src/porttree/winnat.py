@@ -6,6 +6,7 @@ Windows kernel dynamic port exclusions where no user-space PID exists in netstat
 
 from __future__ import annotations
 
+import functools
 import re
 import subprocess
 import sys
@@ -18,6 +19,7 @@ def is_windows() -> bool:
     return sys.platform.startswith("win")
 
 
+@functools.lru_cache(maxsize=16)
 def get_windows_port_exclusions(protocol: str = "tcp") -> list[ExcludedPortRange]:
     """Retrieve all active Windows port exclusion ranges via netsh."""
     if not is_windows():
@@ -34,6 +36,8 @@ def get_windows_port_exclusions(protocol: str = "tcp") -> list[ExcludedPortRange
                     cmd,
                     capture_output=True,
                     text=True,
+                    encoding="utf-8",
+                    errors="replace",
                     check=False,
                     timeout=4,
                 )
@@ -105,11 +109,15 @@ def check_port_exclusion(port: int, protocol: str = "tcp") -> ExcludedPortRange 
     return None
 
 
-def format_winnat_diagnosis(port: int, exclusion: ExcludedPortRange) -> str:
+def format_winnat_diagnosis(
+    port: int, exclusion: ExcludedPortRange, use_ascii: bool = False
+) -> str:
     """Format an actionable diagnostic report with root cause and fix commands."""
+    warn_icon = "[!]" if use_ascii else "⚠️ "
+    dash = "-" if use_ascii else "–"
     lines = [
-        f"{Colors.warn('⚠️  Port')} {Colors.port(str(port))} {Colors.warn('is reserved by Windows Kernel (Hyper-V / WinNAT / WSL2)')}",
-        f"   {Colors.dim('Range:')} {exclusion.start_port} – {exclusion.end_port} ({exclusion.protocol.upper()})"
+        f"{Colors.warn(f'{warn_icon} Port')} {Colors.port(str(port))} {Colors.warn('is reserved by Windows Kernel (Hyper-V / WinNAT / WSL2)')}",
+        f"   {Colors.dim('Range:')} {exclusion.start_port} {dash} {exclusion.end_port} ({exclusion.protocol.upper()})"
         + (" [Administered]" if exclusion.administered else " [Dynamic Kernel Pool]"),
         "",
         f"   {Colors.BOLD}Root Cause:{Colors.RESET}",

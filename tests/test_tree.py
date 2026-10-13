@@ -121,3 +121,50 @@ def test_process_resolver_load_macos_ps():
         assert 101 in resolver._cache
         assert resolver._cache[101].ppid == 100
         assert resolver._cache[100].cmdline == "node /app/server.js"
+
+
+def test_find_git_info_tag_and_remote(tmp_path):
+    repo_dir = tmp_path / "tagged-repo"
+    git_dir = repo_dir / ".git"
+    git_dir.mkdir(parents=True)
+
+    head_file = git_dir / "HEAD"
+    # Tag
+    head_file.write_text("ref: refs/tags/v1.2.3\n", encoding="utf-8")
+    branch, repo = find_git_info(str(repo_dir))
+    assert branch == "tag:v1.2.3"
+    assert repo == "tagged-repo"
+
+    # Remote branch
+    head_file.write_text("ref: refs/remotes/origin/main\n", encoding="utf-8")
+    branch, repo = find_git_info(str(repo_dir))
+    assert branch == "remote:origin/main"
+    assert repo == "tagged-repo"
+
+
+def test_process_resolver_resolve_git_from_cmdline(tmp_path):
+    repo_dir = tmp_path / "my-web-service"
+    git_dir = repo_dir / ".git"
+    git_dir.mkdir(parents=True)
+    (git_dir / "HEAD").write_text("ref: refs/heads/feature/login\n", encoding="utf-8")
+
+    server_script = repo_dir / "src" / "server.py"
+    server_script.parent.mkdir(parents=True)
+    server_script.write_text("# server code", encoding="utf-8")
+
+    resolver = ProcessResolver(resolve_git=True)
+    # Process without cwd (e.g. system cwd), but with full script path in cmdline
+    node = ProcessNode(
+        pid=999,
+        name="python",
+        cmdline=f"python {server_script}",
+        args=["python", str(server_script)],
+        cwd="/usr/bin",
+    )
+    resolver._cache[999] = node
+    resolver._all_processes_loaded = True
+
+    resolved_node = resolver.get_process_node(999)
+    assert resolved_node is not None
+    assert resolved_node.git_branch == "feature/login"
+    assert resolved_node.git_repo == "my-web-service"
