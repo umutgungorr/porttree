@@ -1,0 +1,88 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "porttree"
+version = "0.1.0"
+description = "Zero-dependency cross-platform socket scanner and process tree resolver. Maps ports to processes, Git branches, CWD, and Docker containers."
+readme = "README.md"
+authors = [
+    { name = "Umut Güngör", email = "umutgungor.dev@gmail.com" }
+]
+maintainers = [
+    { name = "Umut Güngör", email = "umutgungor.dev@gmail.com" }
+]
+license = { text = "MIT" }
+requires-python = ">=3.9"
+keywords = [
+    "cli",
+    "ports",
+    "socket",
+    "networking",
+    "process-tree",
+    "docker",
+    "wsl2",
+    "hyper-v",
+    "developer-tools",
+    "terminal",
+    "diagnostics",
+    "devops"
+]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Environment :: Console",
+    "Intended Audience :: Developers",
+    "Intended Audience :: System Administrators",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+    "Operating System :: POSIX :: Linux",
+    "Operating System :: MacOS",
+    "Operating System :: Microsoft :: Windows",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Programming Language :: Python :: 3.14",
+    "Topic :: System :: Networking",
+    "Topic :: System :: Systems Administration",
+    "Topic :: Utilities"
+]
+dependencies = []
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=7.0.0",
+    "pytest-cov>=4.0.0",
+    "ruff>=0.1.0"
+]
+
+[project.scripts]
+porttree = "porttree.cli:main"
+
+[project.urls]
+Homepage = "https://github.com/umutgungorr/porttree"
+Repository = "https://github.com/umutgungorr/porttree"
+Issues = "https://github.com/umutgungorr/porttree/issues"
+Changelog = "https://github.com/umutgungorr/porttree/blob/main/CHANGELOG.md"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/porttree"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["src"]
+addopts = "-v --strict-markers"
+
+[tool.ruff]
+target-version = "py39"
+line-length = 100
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "W", "UP"]
+ignore = [
+    "E501",  # Line length handled by formatter
+    "UP042", # StrEnum is only Python 3.11+; str, enum.Enum is needed for 3.9/3.10
+]

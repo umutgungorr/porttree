@@ -1,0 +1,65 @@
+name: 'PortTree Port Collision & Socket Inspector'
+description: 'Pre-flight check docker-compose and dev ports to prevent EADDRINUSE collisions in CI'
+author: 'Umut Güngör'
+
+branding:
+  icon: 'git-branch'
+  color: 'green'
+
+inputs:
+  ports:
+    description: 'Comma-separated list of explicit ports to verify (e.g. "3000, 8080, 5432")'
+    required: false
+    default: ''
+  check-file:
+    description: 'Config files to scan for declared ports (e.g. "docker-compose.yml, package.json")'
+    required: false
+    default: ''
+  fail-on-conflict:
+    description: 'Fail the action step with exit code 1 if any port collision is detected'
+    required: false
+    default: 'true'
+  summary:
+    description: 'Write formatted Markdown collision report to $GITHUB_STEP_SUMMARY'
+    required: false
+    default: 'true'
+
+outputs:
+  open-ports:
+    description: 'Comma-separated list of currently listening ports on the runner'
+    value: ${{ steps.run-porttree.outputs.open-ports }}
+  conflict-count:
+    description: 'Total number of detected port collisions'
+    value: ${{ steps.run-porttree.outputs.conflict-count }}
+  conflicts:
+    description: 'Comma-separated list of conflicting ports'
+    value: ${{ steps.run-porttree.outputs.conflicts }}
+
+runs:
+  using: 'composite'
+  steps:
+    - name: Run PortTree Action
+      id: run-porttree
+      shell: bash
+      env:
+        ACTION_PATH: ${{ github.action_path }}
+        INPUT_PORTS: ${{ inputs.ports }}
+        INPUT_CHECK_FILE: ${{ inputs.check-file }}
+        INPUT_FAIL_ON_CONFLICT: ${{ inputs.fail-on-conflict }}
+        INPUT_SUMMARY: ${{ inputs.summary }}
+      run: |
+        PYTHON_BIN="python"
+        if ! command -v python &> /dev/null; then
+          PYTHON_BIN="python3"
+        fi
+
+        # Optional: install porttree CLI if pip is available
+        if "$PYTHON_BIN" -m pip --version &> /dev/null; then
+          "$PYTHON_BIN" -m pip install --quiet --no-warn-script-location "$ACTION_PATH" 2>/dev/null || \
+          "$PYTHON_BIN" -m pip install --quiet --break-system-packages --no-warn-script-location "$ACTION_PATH" 2>/dev/null || true
+        fi
+
+        # Ensure action source directory is always available on PYTHONPATH
+        export PYTHONPATH="$ACTION_PATH/src${PYTHONPATH:+:$PYTHONPATH}"
+
+        "$PYTHON_BIN" -m porttree.action
