@@ -63,7 +63,7 @@ dev = [
 porttree = "porttree.cli:main"
 
 [project.urls]
-Homepage = "https://github.com/umutgungorr/porttree"
+Homepage = "https://umutgungorr.com/"
 Repository = "https://github.com/umutgungorr/porttree"
 Issues = "https://github.com/umutgungorr/porttree/issues"
 Changelog = "https://github.com/umutgungorr/porttree/blob/main/CHANGELOG.md"
