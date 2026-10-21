@@ -350,6 +350,12 @@ PortTree is part of the zero-dependency **Developer Diagnostics Suite** by [@umu
 
 ---
 
+## 📖 Project Case Study
+
+PortTree is an open-source project by [Umut Güngör](https://umutgungorr.com/). Read the [PortTree case study](https://umutgungorr.com/projects/porttree) for its architecture, cross-platform socket resolution engine, and real-world benchmarks.
+
+---
+
 ## 📄 License
 
 This project is licensed under the terms of the [MIT License](LICENSE).  
