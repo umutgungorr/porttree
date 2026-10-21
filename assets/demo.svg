@@ -1,0 +1,133 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 880 500" width="100%" height="auto">
+  <defs>
+    <linearGradient id="bgGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#0d1117" />
+      <stop offset="100%" stop-color="#161b22" />
+    </linearGradient>
+    <filter id="shadow" x="-5%" y="-5%" width="110%" height="110%">
+      <feDropShadow dx="0" dy="16" stdDeviation="24" flood-color="#000000" flood-opacity="0.6"/>
+    </filter>
+  </defs>
+
+  <style>
+    .code { font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, "Liberation Mono", monospace; font-size: 13.5px; fill: #e6edf3; }
+    .muted { fill: #8b949e; }
+    .green { fill: #3fb950; font-weight: 600; }
+    .cyan { fill: #58a6ff; font-weight: 600; }
+    .yellow { fill: #d29922; }
+    .purple { fill: #bc8cff; font-weight: 600; }
+    .red { fill: #f85149; }
+    .bold { font-weight: bold; }
+    .badge { font-size: 11px; font-weight: bold; }
+  </style>
+
+  <!-- Terminal Window Frame -->
+  <rect x="20" y="20" width="840" height="460" rx="12" fill="url(#bgGrad)" stroke="#30363d" stroke-width="1.5" filter="url(#shadow)"/>
+
+  <!-- Titlebar -->
+  <path d="M 20 32 Q 20 20 32 20 L 848 20 Q 860 20 860 32 L 860 58 L 20 58 Z" fill="#161b22" stroke="#30363d" stroke-width="1"/>
+  
+  <!-- Window Controls -->
+  <circle cx="44" cy="39" r="6" fill="#ff5f56" stroke="#e0443e" stroke-width="0.5"/>
+  <circle cx="64" cy="39" r="6" fill="#ffbd2e" stroke="#dea123" stroke-width="0.5"/>
+  <circle cx="84" cy="39" r="6" fill="#27c93f" stroke="#1aab29" stroke-width="0.5"/>
+
+  <!-- Window Title -->
+  <text x="440" y="44" text-anchor="middle" font-family="-apple-system, BlinkMacSystemFont, Segoe UI, sans-serif" font-size="12.5" fill="#8b949e" font-weight="500">porttree — zsh — 880x500</text>
+
+  <!-- Terminal Content Area -->
+  <g class="code" transform="translate(42, 86)">
+    <!-- Command 1 -->
+    <text x="0" y="0">
+      <tspan class="green bold">❯ </tspan>
+      <tspan class="cyan">uvx</tspan>
+      <tspan> porttree 3000 5432</tspan>
+    </text>
+
+    <!-- Output Port 3000 -->
+    <text x="0" y="32">
+      <tspan class="cyan bold">PORT 3000</tspan>
+      <tspan class="muted"> (TCP) </tspan>
+      <tspan fill="#238636" class="bold">[LISTEN]</tspan>
+      <tspan class="muted"> • </tspan>
+      <tspan fill="#f0883e">0.0.0.0:3000</tspan>
+    </text>
+
+    <!-- Node Tree -->
+    <text x="0" y="58">
+      <tspan class="muted"> └─ </tspan>
+      <tspan class="yellow bold">npm run dev</tspan>
+      <tspan class="muted"> (PID 48280) </tspan>
+      <tspan class="purple bold">[git: feat/auth (frontend)]</tspan>
+    </text>
+
+    <text x="0" y="82">
+      <tspan class="muted">    └─ </tspan>
+      <tspan class="yellow">nodemon</tspan>
+      <tspan class="muted"> (PID 48285)</tspan>
+    </text>
+
+    <text x="0" y="106">
+      <tspan class="muted">       └─ </tspan>
+      <tspan class="yellow">node server.js</tspan>
+      <tspan class="muted"> (PID 48291)</tspan>
+    </text>
+
+    <!-- Output Port 5432 (Docker) -->
+    <text x="0" y="146">
+      <tspan class="cyan bold">PORT 5432</tspan>
+      <tspan class="muted"> (TCP) </tspan>
+      <tspan fill="#238636" class="bold">[LISTEN]</tspan>
+      <tspan class="muted"> • </tspan>
+      <tspan fill="#f0883e">0.0.0.0:5432</tspan>
+    </text>
+
+    <!-- Docker Proxy Unmasked -->
+    <text x="0" y="172">
+      <tspan class="muted"> └─ </tspan>
+      <tspan class="yellow bold">docker-proxy</tspan>
+      <tspan class="muted"> (PID 19284) </tspan>
+      <tspan fill="#58a6ff" class="bold">[unmasked: postgres:16-alpine (container: db_core)]</tspan>
+    </text>
+
+    <text x="0" y="196">
+      <tspan class="muted">    └─ compose project: </tspan>
+      <tspan class="green">backend-stack</tspan>
+      <tspan class="muted"> | service: </tspan>
+      <tspan class="green">postgres</tspan>
+    </text>
+
+    <!-- Divider -->
+    <line x1="0" y1="228" x2="796" y2="228" stroke="#30363d" stroke-dasharray="4,4" />
+
+    <!-- Command 2 -->
+    <text x="0" y="260">
+      <tspan class="green bold">❯ </tspan>
+      <tspan class="cyan">porttree</tspan>
+      <tspan> free 3000 -y</tspan>
+    </text>
+
+    <!-- Output Free -->
+    <text x="0" y="292">
+      <tspan class="yellow bold">[!]</tspan>
+      <tspan> Target tree for Port 3000: PID 48280 (npm run dev) + 2 child workers</tspan>
+    </text>
+
+    <text x="0" y="318">
+      <tspan class="green bold">[✓]</tspan>
+      <tspan> Sent SIGTERM to PID 48280 and tree descendants.</tspan>
+    </text>
+
+    <text x="0" y="344">
+      <tspan class="green bold">[✓]</tspan>
+      <tspan class="bold"> Port 3000 is now completely FREE.</tspan>
+      <tspan class="muted"> (Verification: 0 sockets listening)</tspan>
+    </text>
+
+    <!-- Next prompt -->
+    <text x="0" y="378">
+      <tspan class="green bold">❯ </tspan>
+      <rect x="18" y="365" width="8" height="15" fill="#58a6ff" opacity="0.8"/>
+    </text>
+  </g>
+</svg>

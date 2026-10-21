@@ -41,6 +41,12 @@
 
 ---
 
+<p align="center">
+  <img src="assets/demo.svg" alt="PortTree Terminal Demo" width="850">
+</p>
+
+---
+
 <a id="problem-solution"></a>
 ## 💥 The Problem vs. Solution
 
