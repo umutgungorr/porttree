@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "porttree"
-version = "1.0.0"
+version = "1.0.1"
 description = "Zero-dependency cross-platform socket scanner and process tree resolver. Maps ports to processes, Git branches, CWD, and Docker containers."
 readme = "README.md"
 authors = [
@@ -64,6 +64,7 @@ porttree = "porttree.cli:main"
 
 [project.urls]
 Homepage = "https://umutgungorr.com/"
+Documentation = "https://umutgungorr.com/projects/porttree"
 Repository = "https://github.com/umutgungorr/porttree"
 Issues = "https://github.com/umutgungorr/porttree/issues"
 Changelog = "https://github.com/umutgungorr/porttree/blob/main/CHANGELOG.md"
