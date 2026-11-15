@@ -63,8 +63,10 @@ dev = [
 porttree = "porttree.cli:main"
 
 [project.urls]
-Homepage = "https://umutgungorr.com/"
+Homepage = "https://umutgungorr.com/projects/porttree"
 Documentation = "https://umutgungorr.com/projects/porttree"
+"Troubleshooting Guide" = "https://umutgungorr.com/blog/eaddrinuse-port-conflict-fix"
+"Socket Tree Deep Dive" = "https://umutgungorr.com/blog/porttree-socket-process-tree"
 Repository = "https://github.com/umutgungorr/porttree"
 Issues = "https://github.com/umutgungorr/porttree/issues"
 Changelog = "https://github.com/umutgungorr/porttree/blob/main/CHANGELOG.md"
