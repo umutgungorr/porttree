@@ -356,9 +356,11 @@ PortTree is part of the zero-dependency **Developer Diagnostics Suite** by [@umu
 
 ---
 
-## 📖 Project Case Study
+## Guides & Architecture
 
-PortTree is an open-source project by [Umut Güngör](https://umutgungorr.com/). Read the [PortTree case study](https://umutgungorr.com/projects/porttree) for its architecture, cross-platform socket resolution engine, and real-world benchmarks.
+- **Project overview & CLI design:** [PortTree on umutgungorr.com](https://umutgungorr.com/projects/porttree)
+- **Troubleshooting guide:** [How to Fix `EADDRINUSE` / Port Already in Use Without Blindly Killing PIDs](https://umutgungorr.com/blog/eaddrinuse-port-conflict-fix)
+- **Socket & process tree deep dive:** [Inspecting Listening Ports with Socket Process Trees](https://umutgungorr.com/blog/porttree-socket-process-tree)
 
 ---
 
