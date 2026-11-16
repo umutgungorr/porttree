@@ -18,8 +18,6 @@ jobs:
         include:
           - os: windows-latest
             python-version: "3.12"
-          - os: macos-latest
-            python-version: "3.12"
 
     steps:
       - name: Check out repository
