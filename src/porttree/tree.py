@@ -173,13 +173,14 @@ class ProcessResolver:
         if not node:
             return None
 
-        # Build child hierarchy
-        self._attach_children(node)
+        # Build child hierarchy with cycle protection (Windows PID reuse can create ppid cycles)
+        visited: set[int] = {node.pid}
+        self._attach_children(node, visited)
 
         # Check if parent is a dev runner (e.g., nodemon, yarn, npm, docker)
-        if include_ancestors and node.ppid and node.ppid > 1:
+        if include_ancestors and node.ppid and node.ppid > 1 and node.ppid not in visited:
             parent = self.get_process_node(node.ppid)
-            if parent and parent.pid != node.pid:
+            if parent and parent.pid != node.pid and parent.pid not in visited:
                 # If parent is an orchestration tool, we can nest under it
                 p_name = parent.name.lower()
                 if any(
@@ -193,17 +194,25 @@ class ProcessResolver:
 
         return node
 
-    def _attach_children(self, node: ProcessNode) -> None:
+    def _attach_children(self, node: ProcessNode, visited: set[int] | None = None) -> None:
         """Find all processes that have ppid == node.pid and attach them."""
         if not self._all_processes_loaded:
             self._load_all_processes()
 
-        children = [p for p in self._cache.values() if p.ppid == node.pid and p.pid != node.pid]
+        if visited is None:
+            visited = {node.pid}
+
+        children = [
+            p
+            for p in self._cache.values()
+            if p.ppid == node.pid and p.pid != node.pid and p.pid not in visited
+        ]
         node.children = children
         for child in children:
+            visited.add(child.pid)
             if self.resolve_git and not child.git_branch:
                 child.git_branch, child.git_repo = self._resolve_git_for_node(child)
-            self._attach_children(child)
+            self._attach_children(child, visited)
 
     def _load_all_processes(self) -> None:
         """Load all system processes into cache using OS-optimized bulk commands."""
