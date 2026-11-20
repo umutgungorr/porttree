@@ -358,9 +358,9 @@ PortTree is part of the zero-dependency **Developer Diagnostics Suite** by [@umu
 
 ## Guides & Architecture
 
-- **Project overview & CLI design:** [PortTree on umutgungorr.com](https://umutgungorr.com/projects/porttree)
-- **Troubleshooting guide:** [How to Fix `EADDRINUSE` / Port Already in Use Without Blindly Killing PIDs](https://umutgungorr.com/blog/eaddrinuse-port-conflict-fix)
-- **Socket & process tree deep dive:** [Inspecting Listening Ports with Socket Process Trees](https://umutgungorr.com/blog/porttree-socket-process-tree)
+- **Project overview & CLI design:** [PortTree on umutgungorr.com](https://umutgungorr.com/projects/porttree?lang=en)
+- **Troubleshooting guide:** [How to Fix `EADDRINUSE` / Port Already in Use Without Blindly Killing PIDs](https://umutgungorr.com/blog/eaddrinuse-port-conflict-fix?lang=en)
+- **Socket & process tree deep dive:** [Inspecting Listening Ports with Socket Process Trees](https://umutgungorr.com/blog/porttree-socket-process-tree?lang=en)
 
 ---
 
